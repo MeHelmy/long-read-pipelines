@@ -129,3 +129,9 @@ workflows:
 - name: FilterBamByLength
   subclass: wdl
   primaryDescriptorPath: /wdl/pipelines/TechAgnostic/Utility/FilterBamByLength.wdl
+- name: LongReadsContaminationEstimation
+  subclass: wdl
+  primaryDescriptorPath: /wdl/pipelines/TechAgnostic/Utility/LongReadsContaminationEstimation.wdl
+- name: SexCheckNaive
+  subclass: wdl
+  primaryDescriptorPath: /wdl/pipelines/TechAgnostic/Utility/SexCheckNaive.wdl
