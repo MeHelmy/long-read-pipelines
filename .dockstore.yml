@@ -135,3 +135,6 @@ workflows:
 - name: SexCheckNaive
   subclass: wdl
   primaryDescriptorPath: /wdl/pipelines/TechAgnostic/Utility/SexCheckNaive.wdl
+- name: VerifyBamFingerprint
+  subclass: wdl
+  primaryDescriptorPath: /wdl/pipelines/TechAgnostic/Utility/VerifyBamFingerprint.wdl
