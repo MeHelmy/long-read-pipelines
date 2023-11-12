@@ -77,13 +77,21 @@ workflow AlignONTWGSuBAM {
     String ready_to_use_rg_line = OneOffHandleTabInRGLine.fixed_rg_line
 
     ###################################################################################
-    # BAMs bigger than this should be handled per-shard, approximately 576K ONT reads translates to 8G.
+    # (fundamental assumption: PacBio reads are handled by pbmm2 in a separate route)
+    # shard-align when BAM is bigger than a certain threshold
+    # here our enemy is GCP preemption:
+    # emperically, 576K reads ~ 8GiB BAM for ONT reads
+    # which takes roughly 2 hours for minimap2+sort task on SSD-type PD with 16 cores, and that rarely gets preemptied
+    # we want to balance between wall-clock time and size of VM
+    # both higher-count-CPU and longer wall-clock time lead to higher chance of preemption
     # also, since LOCAL SSD comes in 375G/pieces, we can compsensate the reads number with IO speed
-    Int emperical_bam_sz_threshold = 8 # if('LOCAL'==aln_disk_type) then 32 else 16
+    Pair[Int, Int] emperical_bamsz_and_readcnt = (8, 576000)
+    Int ssd_pd_scale_factor = 3
+    Int local_ssd_scale_factor = 4
+    Int emperical_bam_sz_threshold = (if('LOCAL'==aln_disk_type) then local_ssd_scale_factor else ssd_pd_scale_factor) * emperical_bamsz_and_readcnt.left
+    Int emperical_n_reads_per_shard = (if('LOCAL'==aln_disk_type) then local_ssd_scale_factor else ssd_pd_scale_factor) * emperical_bamsz_and_readcnt.right
 
     if (emperical_bam_sz_threshold < ceil(size(uBAM, "GiB"))) {
-        # 576K reads is emperical, takes roughly 2 hours for minimap2 task on SSD-type PD
-        Int emperical_n_reads_per_shard = 576000 # (if('LOCAL'==aln_disk_type) then 4 else 2) * 576000
         call BU.SplitNameSortedUbam {
             input: uBAM = uBAM, n_reads = emperical_n_reads_per_shard
         }

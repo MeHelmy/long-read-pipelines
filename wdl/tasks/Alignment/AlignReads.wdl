@@ -46,10 +46,11 @@ task Minimap2 {
     Boolean do_preserve_tags = if length(tags_to_preserve) != 0 then true else false
 
     # we limit the number of CPUs here because the number of input files could be huge (e.g. ONT fastqs)
-    Int max_cpus = 32
-    Int desired_cpus = 16 * length(reads)
+    # also, the task is mostly CPU-bound (i.e. minimap2)
+    Int max_cpus = 96
+    Int desired_cpus = (if('LOCAL'==disk_type) then 32 else 24) * length(reads)
     Int cpus = if max_cpus < desired_cpus then max_cpus else desired_cpus  # WDL 1.0 doesn't have a max(,)....
-    Int mem = cpus * 4
+    Int mem = cpus * (if('LOCAL'==disk_type) then 6 else 5)
 
     Int mm2_threads = cpus - 2
 
