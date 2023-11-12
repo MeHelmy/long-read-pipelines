@@ -1326,8 +1326,9 @@ task MergeBams {
     }
 
     parameter_meta {
-        bams: "Input array of BAMs to be merged."
+        bams: {desciption: "Input array of BAMs to be merged.", localization_optional: true}
         prefix: "Prefix for the output BAM."
+        disk_type: "type of disk (LOCAL for local SSD, SSD for SSD persistent disk--still NAS)"
         runtime_attr_override: "Override the default runtime attributes."
     }
 
@@ -1335,20 +1336,31 @@ task MergeBams {
         Array[File] bams
         String prefix = "out"
 
+        String disk_type = "LOCAL"
+
         RuntimeAttr? runtime_attr_override
     }
 
-    Int disk_size = 1 + 4*ceil(size(bams, "GB"))
+    Int local_ssd_sz = if size(bams, "GB") > 150 then 750 else 375
+    Int pd_sz = 10 + 4*ceil(size(bams, "GB"))
+    Int disk_size = if "LOCAL" == disk_type then local_ssd_sz else pd_sz
 
     command <<<
         set -euxo pipefail
 
+        mkdir -p all_bams
+        time \
+        gcloud storage cp ~{sep=" " bams} /cromwell_root/all_bams/
+
+        cd all_bams && ls ./*.bam > bam.list
         samtools merge \
             -p -c --no-PG \
             -@ 2 \
             --write-index \
             -o "~{prefix}.bam##idx##~{prefix}.bam.bai" \
-            ~{sep=" " bams}
+            -b bam.list
+        mv "~{prefix}.bam" "~{prefix}.bam.bai" /cromwell_root
+        cd -
     >>>
 
     output {
@@ -1361,17 +1373,15 @@ task MergeBams {
         cpu_cores:          4,
         mem_gb:             20,
         disk_gb:            disk_size,
-        boot_disk_gb:       10,
-        preemptible_tries:  0,
+        preemptible_tries:  if "LOCAL" == disk_type then 1 else 0,
         max_retries:        0,
-        docker:             "us.gcr.io/broad-dsp-lrma/lr-basic:0.1.1"
+        docker:             "us.gcr.io/broad-dsp-lrma/lr-gcloud-samtools:0.1.2"
     }
     RuntimeAttr runtime_attr = select_first([runtime_attr_override, default_attr])
     runtime {
         cpu:                    select_first([runtime_attr.cpu_cores,         default_attr.cpu_cores])
         memory:                 select_first([runtime_attr.mem_gb,            default_attr.mem_gb]) + " GiB"
-        disks: "local-disk " +  select_first([runtime_attr.disk_gb,           default_attr.disk_gb]) + " LOCAL"
-        bootDiskSizeGb:         select_first([runtime_attr.boot_disk_gb,      default_attr.boot_disk_gb])
+        disks: "local-disk " +  select_first([runtime_attr.disk_gb,           default_attr.disk_gb]) + " ~{disk_type}"
         preemptible:            select_first([runtime_attr.preemptible_tries, default_attr.preemptible_tries])
         maxRetries:             select_first([runtime_attr.max_retries,       default_attr.max_retries])
         docker:                 select_first([runtime_attr.docker,            default_attr.docker])
