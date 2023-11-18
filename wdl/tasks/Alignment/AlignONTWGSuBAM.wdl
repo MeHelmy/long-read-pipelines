@@ -139,7 +139,7 @@ workflow AlignONTWGSuBAM {
     # alignment metrics collection
     call AM.MosDepthWGS { input: bam = aBAM, bai = aBAI }
 
-    call NP.NanoPlotFromBam { input: bam = aBAM, bai = aBAI }
+    call NP.NanoPlotFromBam { input: bam = aBAM, bai = aBAI, disk_type = aln_disk_type }
     call GU.TarGZFiles as PackAlnMetrics {
         input: files = NanoPlotFromBam.plots, name = "alignment.metrics"
     }
