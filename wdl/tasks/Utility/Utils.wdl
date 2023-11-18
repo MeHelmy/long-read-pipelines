@@ -1341,8 +1341,8 @@ task MergeBams {
         RuntimeAttr? runtime_attr_override
     }
 
-    Int local_ssd_sz = if size(bams, "GB") > 150 then 750 else 375
-    Int pd_sz = 10 + 4*ceil(size(bams, "GB"))
+    Int local_ssd_sz = if size(bams, "GiB") > 150 then 750 else 375
+    Int pd_sz = 10 + 3*ceil(size(bams, "GiB"))
     Int disk_size = if "LOCAL" == disk_type then local_ssd_sz else pd_sz
 
     command <<<
@@ -1371,11 +1371,11 @@ task MergeBams {
     #########################
     RuntimeAttr default_attr = object {
         cpu_cores:          4,
-        mem_gb:             20,
+        mem_gb:             8,
         disk_gb:            disk_size,
         preemptible_tries:  if "LOCAL" == disk_type then 1 else 0,
         max_retries:        0,
-        docker:             "us.gcr.io/broad-dsp-lrma/lr-gcloud-samtools:0.1.2"
+        docker:             "us.gcr.io/broad-dsp-lrma/lr-gcloud-samtools:0.1.3"
     }
     RuntimeAttr runtime_attr = select_first([runtime_attr_override, default_attr])
     runtime {
