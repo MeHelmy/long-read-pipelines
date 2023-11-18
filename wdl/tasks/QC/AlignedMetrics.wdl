@@ -213,13 +213,13 @@ task MosDepthWGS {
     input {
         File bam
         File bai
+        String disk_type = "HDD"
         RuntimeAttr? runtime_attr_override
     }
     parameter_meta {
         bam: {localization_optional: true}
     }
 
-    Int disk_size = 10 + 2*ceil(size(bam, "GB") + size(bai, "GB"))
     String basename = basename(bam, ".bam")
     String prefix = "~{basename}.mosdepth_coverage"
 
@@ -243,12 +243,14 @@ task MosDepthWGS {
         Float wgs_cov = read_float("wgs.cov.txt")
     }
 
+    Int pd_disk_size = 10 + ceil(size(bam, "GiB"))
+    Int local_disk_size = if(size(bam, "GiB")>300) then 750 else 375
+    Int disk_size = if('LOCAL'==disk_type) then local_disk_size else pd_disk_size
     #########################
     RuntimeAttr default_attr = object {
         cpu_cores:          4,
-        mem_gb:             32,
+        mem_gb:             16,
         disk_gb:            disk_size,
-        boot_disk_gb:       10,
         preemptible_tries:  2,
         max_retries:        1,
         docker:             "us.gcr.io/broad-dsp-lrma/mosdepth:0.3.4-gcloud"
@@ -257,8 +259,7 @@ task MosDepthWGS {
     runtime {
         cpu:                    select_first([runtime_attr.cpu_cores,         default_attr.cpu_cores])
         memory:                 select_first([runtime_attr.mem_gb,            default_attr.mem_gb]) + " GiB"
-        disks: "local-disk " +  select_first([runtime_attr.disk_gb,           default_attr.disk_gb]) + " HDD"
-        bootDiskSizeGb:         select_first([runtime_attr.boot_disk_gb,      default_attr.boot_disk_gb])
+        disks: "local-disk " +  select_first([runtime_attr.disk_gb,           default_attr.disk_gb]) + " ~{disk_type}"
         preemptible:            select_first([runtime_attr.preemptible_tries, default_attr.preemptible_tries])
         maxRetries:             select_first([runtime_attr.max_retries,       default_attr.max_retries])
         docker:                 select_first([runtime_attr.docker,            default_attr.docker])
