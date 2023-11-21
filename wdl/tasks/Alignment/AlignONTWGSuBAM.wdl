@@ -45,6 +45,7 @@ workflow AlignONTWGSuBAM {
 
         Float wgs_cov = MosDepthWGS.wgs_cov
         Map[String, Float] aln_summary = NanoPlotFromBam.stats_map
+        File mosdepth_summary_txt = MosDepthWGS.summary_txt
         File alignment_metrics_tar_gz = PackAlnMetrics.you_got_it
     }
 

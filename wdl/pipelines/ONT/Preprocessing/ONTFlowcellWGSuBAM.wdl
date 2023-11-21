@@ -68,6 +68,7 @@ workflow ONTFlowcellWGSuBAM {
         # Aligned read stats
         Map[String, Float] aln_metrics = ALN.aln_summary
         File alignment_metrics_tar_gz = FinalizeAlnMetrics.gcs_path
+        File coverage_per_chr = FinalizeMosdepSumm.gcs_path
 
         String? fingerprint_check_results = fingerprint_check_status
         Float? fingerprint_check_LOD = FPCheckAoU.lod_expected_sample
@@ -114,6 +115,7 @@ workflow ONTFlowcellWGSuBAM {
     }
     call FF.FinalizeToFile as FinalizeAlignedBam { input: outdir = outdir_aln, file = ALN.aligned_bam }
     call FF.FinalizeToFile as FinalizeAlignedBai { input: outdir = outdir_aln, file = ALN.aligned_bai }
+    call FF.FinalizeToFile as FinalizeMosdepSumm { input: outdir = outdir_aln, file = ALN.mosdepth_summary_txt }
     call FF.FinalizeToFile as FinalizeAlnMetrics { input: outdir = outdir_metrics, file = ALN.alignment_metrics_tar_gz }
 
     ###################################################################################

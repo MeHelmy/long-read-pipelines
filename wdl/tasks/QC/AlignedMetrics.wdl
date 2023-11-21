@@ -241,6 +241,7 @@ task MosDepthWGS {
 
     output {
         Float wgs_cov = read_float("wgs.cov.txt")
+        File summary_txt = "~{prefix}.mosdepth.summary.txt"
     }
 
     Int pd_disk_size = 10 + ceil(size(bam, "GiB"))
