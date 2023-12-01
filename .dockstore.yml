@@ -138,3 +138,6 @@ workflows:
 - name: VerifyBamFingerprint
   subclass: wdl
   primaryDescriptorPath: /wdl/pipelines/TechAgnostic/Utility/VerifyBamFingerprint.wdl
+- name: CollectBamFlagStats
+  subclass: wdl
+  primaryDescriptorPath: /wdl/pipelines/TechAgnostic/Utility/CollectBamFlagStats.wdl
