@@ -5,6 +5,7 @@ import "../QC/CollectPacBioAlignedMetrics.wdl" as AlnMetrics
 import "../Utility/PBUtils.wdl" as PB
 import "../Utility/Utils.wdl"
 import "../Utility/GeneralUtils.wdl"
+import "../QC/AlignedMetrics.wdl" as GeAlnMetrics
 
 workflow AlignAndCheckFingerprintCCS {
     meta {
@@ -13,8 +14,8 @@ workflow AlignAndCheckFingerprintCCS {
     }
 
     input {
-        File uBAM
-        File uPBI
+        File  uBAM
+        File? uPBI
         String bam_sample_name
         String library
 
@@ -52,10 +53,13 @@ workflow AlignAndCheckFingerprintCCS {
 
         call Utils.ComputeAllowedLocalSSD as Guess {input: intended_gb = 3*ceil(size(uBAM, "GB") + size(uPBI, "GB"))}
         call Utils.RandomZoneSpewer as arbitrary {input: num_of_zones = 3}
+        if (! defined(uPBI) ) {
+            call PB.PBIndex as PBIndex {input: bam = uBAM}
+        }
 
         call PB.ShardLongReads {
             input:
-                unaligned_bam = uBAM, unaligned_pbi = uPBI,
+                unaligned_bam = uBAM, unaligned_pbi = select_first([uPBI, PBIndex.pbi]),
                 num_shards = 50, num_ssds = Guess.numb_of_local_ssd, zones = arbitrary.zones
         }
 
@@ -121,12 +125,18 @@ workflow AlignAndCheckFingerprintCCS {
         call GeneralUtils.TarGZFiles as saveFPRes {input: files = [FPCheckAoU.fingerprint_summary, FPCheckAoU.fingerprint_details], name = 'fingerprint_check.summary_and_details'}
     }
 
+    call GeAlnMetrics.MosDepthWGS { input: bam = aBAM, bai = aBAI }
+
     output {
         File aligned_bam = aBAM
         File aligned_bai = aBAI
         File aligned_pbi = IndexAlignedReads.pbi
 
+        Float wgs_cov = MosDepthWGS.wgs_cov
+        File coverage_per_chr = MosDepthWGS.summary_txt
+
         File alignment_metrics_tar_gz = saveAlnMetrics.you_got_it
+        Map[String, Float] alignment_metrics = CollectPacBioAlignedMetrics.alignment_metrics
 
         Float? fp_lod_expected_sample = FPCheckAoU.lod_expected_sample
         String? fp_status = FPCheckAoU.FP_status
