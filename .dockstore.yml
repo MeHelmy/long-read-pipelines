@@ -123,3 +123,9 @@ workflows:
 - name: DystPeaker
   subclass: wdl
   primaryDescriptorPath: /wdl/pipelines/TechAgnostic/Utility/DystPeaker.wdl
+- name: FASTQstats
+  subclass: wdl
+  primaryDescriptorPath: /wdl/pipelines/TechAgnostic/Utility/FASTQstats.wdl
+- name: FilterBamByLength
+  subclass: wdl
+  primaryDescriptorPath: /wdl/pipelines/TechAgnostic/Utility/FilterBamByLength.wdl
