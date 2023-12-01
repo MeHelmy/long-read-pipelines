@@ -110,7 +110,7 @@ workflow ONTWholeGenome {
             aligned_bams = aligned_bams,
             aligned_bais = aligned_bais,
 
-            is_ont = true,
+            tech = 'ONT',
             bams_suspected_to_contain_dup_record = bams_suspected_to_contain_dup_record,
 
             bed_to_compute_coverage = bed_to_compute_coverage,

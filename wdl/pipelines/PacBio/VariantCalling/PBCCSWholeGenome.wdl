@@ -17,6 +17,8 @@ workflow PBCCSWholeGenome {
         aligned_bais:       "GCS path to aligned BAM file indices"
         sample_name:        "sample name as encoded in the bams"
 
+        platform: "PacBio platform used for generating the data; accepted value: [Sequel, Revio]"
+
         ref_map_file: "table indicating reference sequence and auxillary file locations"
         ref_scatter_interval_list_locator: "A file holding paths to interval_list files, used for custom sharding the of the input BAM; when not provided, will shard WG by contig (possibly slower)"
         ref_scatter_interval_list_ids: "A file that gives short IDs to the interval_list files; when not provided, will shard WG by contig (possibly slower)"
@@ -61,6 +63,7 @@ workflow PBCCSWholeGenome {
         String sample_name
         Array[File] aligned_bams
         Array[File] aligned_bais
+        String platform
 
         # reference-specific
         File ref_map_file
@@ -96,7 +99,7 @@ workflow PBCCSWholeGenome {
             aligned_bams = aligned_bams,
             aligned_bais = aligned_bais,
 
-            is_ont = false,
+            tech = platform,
             bams_suspected_to_contain_dup_record = false,
 
             bed_to_compute_coverage = bed_to_compute_coverage,

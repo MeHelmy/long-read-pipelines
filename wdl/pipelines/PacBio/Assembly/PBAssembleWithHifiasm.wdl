@@ -7,6 +7,9 @@ import "../../../tasks/Utility/Finalize.wdl" as FF
 import "../../../tasks/Assembly/Hifiasm.wdl" as HA
 import "../../../tasks/QC/Quast.wdl" as QuastEval
 
+import "../../TechAgnostic/Utility/FASTQstats.wdl" as QC1
+import "../../TechAgnostic/Utility/DystPeaker.wdl" as QC2
+
 workflow PBAssembleWithHifiasm {
 
     meta {
@@ -34,6 +37,8 @@ workflow PBAssembleWithHifiasm {
         Array[File] ccs_fqs
 
         String prefix
+
+        Int short_reads_threshold
 
         File? ref_fasta_for_eval
 
@@ -140,6 +145,11 @@ workflow PBAssembleWithHifiasm {
     }
 
     ###########################################################
+    # more QCs and metrics
+    call QC1.FASTQstats { input: reads=ccs_fq, file_type='FASTQ' }
+    call QC2.DystPeaker { input: input_file=ccs_fq, input_is_bam=false, id=prefix, short_reads_threshold=short_reads_threshold, gcs_out_root_dir=gcs_out_root_dir }
+
+    ###########################################################
     call GU.GetTodayDate as today {}
 
     ###########################################################
@@ -178,5 +188,14 @@ workflow PBAssembleWithHifiasm {
             "quast_2ndary_outputs": FinalizeQuastReports.gcs_dir,
             "quast_contigs_report": if (defined(primary_h0_h1_quast.contigs_reports)) then select_first([FinalizeQuastContigsReport.gcs_path]) else "None"
         }
+
+        ########################################
+        Map[String, Float] hifi_fq_stats = FASTQstats.stats
+
+        # read length metrics
+        File read_len_hist = DystPeaker.read_len_hist
+        Array[Int] read_len_peaks = DystPeaker.read_len_peaks
+        Array[Int] read_len_deciles = DystPeaker.read_len_deciles
+        Map[String, String] read_len_summaries = DystPeaker.read_len_summaries
     }
 }
