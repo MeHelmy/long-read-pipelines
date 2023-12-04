@@ -1,10 +1,12 @@
 version 1.0
 
-import "../QC/FPCheckAoU.wdl" as FPCheck
-import "../QC/CollectPacBioAlignedMetrics.wdl" as AlnMetrics
 import "../Utility/PBUtils.wdl" as PB
 import "../Utility/Utils.wdl"
 import "../Utility/GeneralUtils.wdl"
+import "../Utility/BAMutils.wdl" as BU
+
+import "../QC/FPCheckAoU.wdl" as FPCheck
+import "../QC/CollectPacBioAlignedMetrics.wdl" as AlnMetrics
 import "../QC/AlignedMetrics.wdl" as GeAlnMetrics
 
 workflow AlignAndCheckFingerprintCCS {
@@ -17,7 +19,7 @@ workflow AlignAndCheckFingerprintCCS {
         File  uBAM
         File? uPBI
         String bam_sample_name
-        String library
+        String? library
 
         Boolean turn_off_fingperprint_check
         String fp_store
@@ -40,6 +42,10 @@ workflow AlignAndCheckFingerprintCCS {
     }
 
     Map[String, String] ref_map = read_map(ref_map_file)
+
+    call BU.GetReadGroupInfo as RG {input: bam = uBAM, keys = ['SM', 'LB', 'PU']}
+    String LB = select_first([library, RG.read_group_info['LB']])
+    String movie_name = RG.read_group_info['PU']
 
     ###################################################################################
     if (ceil(size(uBAM, "GB")) > 50) {# shard & align, but practically never true
@@ -113,6 +119,9 @@ workflow AlignAndCheckFingerprintCCS {
             name = "alignment.metrics"
     }
 
+    call BU.SamtoolsFlagStats  { input: bam = aBAM, output_format = 'JSON' }
+    call BU.ParseFlagStatsJson { input: sam_flag_stats_json = SamtoolsFlagStats.flag_stats }
+
     if (!turn_off_fingperprint_check){
         call FPCheck.FPCheckAoU {
             input:
@@ -132,11 +141,14 @@ workflow AlignAndCheckFingerprintCCS {
         File aligned_bai = aBAI
         File aligned_pbi = IndexAlignedReads.pbi
 
+        String movie = movie_name
+
         Float wgs_cov = MosDepthWGS.wgs_cov
         File coverage_per_chr = MosDepthWGS.summary_txt
 
         File alignment_metrics_tar_gz = saveAlnMetrics.you_got_it
         Map[String, Float] alignment_metrics = CollectPacBioAlignedMetrics.alignment_metrics
+        Map[String, Float] sam_flag_stats = ParseFlagStatsJson.qc_pass_reads_SAM_flag_stats
 
         Float? fp_lod_expected_sample = FPCheckAoU.lod_expected_sample
         String? fp_status = FPCheckAoU.FP_status
