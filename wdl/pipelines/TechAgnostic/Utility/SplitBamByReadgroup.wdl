@@ -67,7 +67,7 @@ workflow SplitBamByReadgroup {
 
         # basecall_model only applies to ONT, so PacBio data will always get 'None'
         Array[String] readgroup_attrs_to_get = ['ID', 'LB', 'PU']
-        call BU.GetReadGroupInfo { input: uBAM = bam, keys = readgroup_attrs_to_get, null_value_representation = 'None' }
+        call BU.GetReadGroupInfo { input: bam = bam, keys = readgroup_attrs_to_get, null_value_representation = 'None' }
         String rgid = GetReadGroupInfo.read_group_info['ID']
         String library = GetReadGroupInfo.read_group_info['LB']
         String platform_unit = GetReadGroupInfo.read_group_info['PU']
@@ -100,7 +100,7 @@ workflow SplitBamByReadgroup {
 
         # convert to FASTQ if so requested
         if (convert_to_fq) {
-            call Utils.BamToFastq { input: bam = bam, prefix = basename(bam, ".bam") }
+            call BU.BamToFastq { input: bam = bam, prefix = basename(bam, ".bam") }
             call FF.FinalizeToFile as SaveFq {
                 input: file = BamToFastq.reads_fq, outdir = outdir
             }
