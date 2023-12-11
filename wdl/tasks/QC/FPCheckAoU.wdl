@@ -40,51 +40,59 @@ workflow FPCheckAoU {
         Float lod_fail_threshold = -3.0
     }
 
-    ##### Prep work
-    call ResolveFPVCFPath {input: fp_store = fp_store, sample_id_at_store = sample_id_at_store}
-    call ReheaderFullGRCh38VCFtoNoAlt {input: full_GRCh38_vcf = ResolveFPVCFPath.fp_vcf}
-
-    call VariantUtils.GetVCFSampleName {
-        input:
-            fingerprint_vcf = ReheaderFullGRCh38VCFtoNoAlt.reheadered_vcf
-    }
-    call FPUtils.FilterGenotypesVCF {
-        input:
-            fingerprint_vcf = ReheaderFullGRCh38VCFtoNoAlt.reheadered_vcf
-    }
-    call FPUtils.ExtractGenotypingSites {
-        input:
-            fingerprint_vcf = FilterGenotypesVCF.ready_to_use_vcf
-    }
-    call FPUtils.ExtractRelevantGenotypingReads {
-        input:
-            aligned_bam     = aligned_bam,
-            aligned_bai     = aligned_bai,
-            genotyping_sites_bed = ExtractGenotypingSites.sites,
-    }
-
-    ##### check
-    call FPUtils.CheckFingerprint {
-        input:
-            aligned_bam     = ExtractRelevantGenotypingReads.relevant_reads,
-            aligned_bai     = ExtractRelevantGenotypingReads.relevant_reads_bai,
-            fingerprint_vcf = FilterGenotypesVCF.ready_to_use_vcf,
-            vcf_sample_name = GetVCFSampleName.sample_name,
-            haplotype_map   = ref_specific_haplotype_map
-    }
-
-    ##### wrapup
-    Float lod_expected_sample_t = CheckFingerprint.metrics_map['LOD_EXPECTED_SAMPLE']
-
-    String status = if(lod_expected_sample_t < lod_fail_threshold) then "FAIL" else if (lod_expected_sample_t > lod_pass_threshold) then "PASS" else "BORDERLINE"
-
     output {
-        Float lod_expected_sample = lod_expected_sample_t
-        String FP_status = status
+        Float lod_expected_sample = fingerprint_check_LOD
+        String FP_status = fingerprint_check_status
 
-        File fingerprint_summary = CheckFingerprint.summary_metrics
-        File fingerprint_details = CheckFingerprint.detail_metrics
+        File fingerprint_summary = select_first([CheckFingerprint.summary_metrics, "None"])
+        File fingerprint_details = select_first([CheckFingerprint.detail_metrics, "None"])
     }
+
+    Int teeny_bam_def_sz = 200  # todo: this might be platform dependent
+    Int bam_sz_mb = ceil(size(aligned_bam, "MiB"))
+    if (bam_sz_mb >= teeny_bam_def_sz) {
+        ##### Prep work
+        call ResolveFPVCFPath {input: fp_store = fp_store, sample_id_at_store = sample_id_at_store}
+        call ReheaderFullGRCh38VCFtoNoAlt {input: full_GRCh38_vcf = ResolveFPVCFPath.fp_vcf}
+
+        call VariantUtils.GetVCFSampleName {
+            input:
+                fingerprint_vcf = ReheaderFullGRCh38VCFtoNoAlt.reheadered_vcf
+        }
+        call FPUtils.FilterGenotypesVCF {
+            input:
+                fingerprint_vcf = ReheaderFullGRCh38VCFtoNoAlt.reheadered_vcf
+        }
+        call FPUtils.ExtractGenotypingSites {
+            input:
+                fingerprint_vcf = FilterGenotypesVCF.ready_to_use_vcf
+        }
+        call FPUtils.ExtractRelevantGenotypingReads {
+            input:
+                aligned_bam     = aligned_bam,
+                aligned_bai     = aligned_bai,
+                genotyping_sites_bed = ExtractGenotypingSites.sites,
+        }
+
+        ##### check
+        call FPUtils.CheckFingerprint {
+            input:
+                aligned_bam     = ExtractRelevantGenotypingReads.relevant_reads,
+                aligned_bai     = ExtractRelevantGenotypingReads.relevant_reads_bai,
+                fingerprint_vcf = FilterGenotypesVCF.ready_to_use_vcf,
+                vcf_sample_name = GetVCFSampleName.sample_name,
+                haplotype_map   = ref_specific_haplotype_map
+        }
+
+        ##### wrapup
+        Float lod_expected_sample_t = CheckFingerprint.metrics_map['LOD_EXPECTED_SAMPLE']
+
+        String status = if(lod_expected_sample_t < lod_fail_threshold) then "FAIL" else if (lod_expected_sample_t > lod_pass_threshold) then "PASS" else "BORDERLINE"
+    }
+    # FAIL the bam if coverage is below a certain threshold (not much useful data anyway)
+    Float teeny_bam_lod = 0.0
+    String fingerprint_check_status = select_first([status, "FAIL"])
+    Float fingerprint_check_LOD = select_first([lod_expected_sample_t, teeny_bam_lod])
 }
 
 task ResolveFPVCFPath {

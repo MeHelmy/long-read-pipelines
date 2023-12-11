@@ -10,22 +10,26 @@ workflow CountTheBeans {
     input {
         File  bam
         File? bai
-        String gcs_out_root_dir
         String bam_descriptor
         Boolean use_local_ssd = false
+        String? gcs_out_root_dir
     }
 
-    String out_dir = "RecordsWithout5mcMethylTags/" + basename(bam, ".bam") + "." + bam_descriptor
 
     call BU.CountMethylCallReads as Count { input: bam = bam, bai = bai, disk_type = if(use_local_ssd) then "LOCAL" else "SSD"}
 
     call BU.GatherReadsWithoutMethylCalls as GatherBitter { input: bam = bam, bai = bai, disk_type = if(use_local_ssd) then "LOCAL" else "SSD"}
 
-    call FF.FinalizeToDir {
-        input:
-            files = [GatherBitter.no_ml_reads, GatherBitter.no_mm_reads,
-                     GatherBitter.names_missing_only_one_tag, GatherBitter.names_missing_both_tags],
-            outdir = sub(gcs_out_root_dir, "/$", "") + "/~{out_dir}"
+    if (defined(gcs_out_root_dir)) {
+        String out_dir = "RecordsWithoutMethylTags/" + basename(bam, ".bam") + "." + bam_descriptor
+        call FF.FinalizeToDir {
+            input:
+                files = [GatherBitter.no_ml_reads,
+                         GatherBitter.no_mm_reads,
+                         GatherBitter.names_missing_only_one_tag,
+                         GatherBitter.names_missing_both_tags],
+                outdir = sub(select_first([gcs_out_root_dir]), "/$", "") + "/~{out_dir}"
+        }
     }
 
     output {
@@ -34,7 +38,7 @@ workflow CountTheBeans {
                                         'raw_record_with-mm-ml_cnt': Count.bean_count,
                                         'primary_record_cnt': Count.non_2304_count,
                                         'primary_record_with-mm-ml_cnt': Count.non_2304_bean_count,
-                                        'files_holding_reads_without_tags': FinalizeToDir.gcs_dir
+                                        'files_holding_reads_without_tags': select_first([FinalizeToDir.gcs_dir, "None"])
         }
     }
 }
