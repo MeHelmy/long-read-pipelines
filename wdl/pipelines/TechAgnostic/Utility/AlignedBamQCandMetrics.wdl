@@ -175,16 +175,16 @@ workflow Work {
     ################################
     # (optional) contamination
     if (defined(vbid2_config_json)) {
-        Map[String, String] vbid2_config = read_json(select_first([vbid2_config_json]))
+        VBID2_config vb_conf = read_json(select_first([vbid2_config_json]))
         call QC1.LongReadsContaminationEstimation as VBID2 { input:
             bam=bam,
             bai=bai,
             ref_map_file=ref_map_file,
             tech = tech,
-            gt_sites_bed = vbid2_config['genotyping_sites_bed'],
-            is_hgdp_sites = vbid2_config['is_HGDP_sites'],
-            is_100k_sites = vbid2_config['is_100K_sites'],
-            disable_baq = vbid2_config['disable_BAQ'],
+            gt_sites_bed  = vb_conf.genotyping_sites,
+            is_hgdp_sites = vb_conf.is_hgdp_sites,
+            is_100k_sites = vb_conf.is_100k_sites,
+            disable_baq   = vb_conf.disable_baq,
             disk_type = disk_type,
         }
         # no file to save from contam.est.
